@@ -113,12 +113,17 @@ local knightPrimary =   knight:get_primary()
 local knightSecondary = knight:get_secondary()
 local knightUtility =   knight:get_utility()
 local knightSpecial =   knight:get_special()
+local knightSpecialScepter = Skill.new(NAMESPACE, "knightSpecialBoosted")
+knightSpecial:set_skill_upgrade(knightSpecialScepter)
 
 local knightPrimaryAlt = Skill.new(NAMESPACE, "knightGreatsword")
 knight:add_primary(knightPrimaryAlt)
 
-local knightSpecialScepter = Skill.new(NAMESPACE, "knightSpecialBoosted")
-knightSpecial:set_skill_upgrade(knightSpecialScepter)
+local knightSpecialAlt = Skill.new(NAMESPACE, "knightBanner")
+knight:add_special(knightSpecialAlt)
+local knightSpecialAltScepter = Skill.new(NAMESPACE, "knightBannerScepter")
+knightSpecialAlt:set_skill_upgrade(knightSpecialAltScepter)
+
 
 -- parry enhanced skills
 local knightShieldBash = Skill.new(NAMESPACE, "knightShieldBash")
@@ -394,7 +399,7 @@ end)
 
 
 -------- SHOCKWAVE!
-obj_shockwave_spawner = Object.new(NAMESPACE, "shockwaveSpawner")
+obj_shockwave_spawner = Object.new(NAMESPACE, "knightShockwaveSpawner")
 
 obj_shockwave_spawner:clear_callbacks()
 obj_shockwave_spawner:onCreate(function( inst )
@@ -898,7 +903,7 @@ end)
 
 
 -------- WARD!
-obj_floating_shield = Object.new(NAMESPACE, "floatingShield")
+obj_floating_shield = Object.new(NAMESPACE, "knightFloatingShield")
 obj_floating_shield:set_sprite(sprite_invigorate)
 
 obj_floating_shield:clear_callbacks()
@@ -1072,4 +1077,77 @@ end)
 stateKnightShieldOrbit:onExit(function( actor, data )
 	local cooldown = actor:get_default_skill(Skill.SLOT.special).cooldown
 	actor:override_active_skill_cooldown(Skill.SLOT.special, cooldown)
+end)
+
+
+-------- RALLY!
+local obj_banner = Object.new(NAMESPACE, "knightBanner")
+obj_banner:set_sprite(gm.constants.sEfWarbanner)
+
+obj_banner:clear_callbacks()
+obj_banner:onCreate(function( inst )
+	inst:move_contact_solid(270, -1)
+	inst.image_speed = 0.2
+end)
+
+obj_banner:onStep(function( inst )
+	if inst.image_index >= 5 then
+		inst.image_index = 5
+	end
+end)
+
+
+knightSpecialAlt.sprite = sprite_skills
+knightSpecialAlt.subimage = 3
+knightSpecialAlt.cooldown = 12 * 60
+knightSpecialAlt.damage = 2
+knightSpecialAlt.require_key_press = true
+knightSpecialAlt.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+knightSpecialAltScepter.sprite = sprite_skills
+knightSpecialAltScepter.subimage = 4
+knightSpecialAltScepter.cooldown = 12 * 60
+knightSpecialAltScepter.damage = 2
+knightSpecialAltScepter.require_key_press = true
+knightSpecialAltScepter.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+local stateKnightBanner = State.new(NAMESPACE, "knightBanner")
+
+knightSpecialAlt:clear_callbacks()
+knightSpecialAlt:onActivate(function( actor )
+	actor:enter_state(stateKnightBanner)
+end)
+
+knightSpecialAltScepter:clear_callbacks()
+knightSpecialAltScepter:onActivate(function( actor )
+	actor:enter_state(stateKnightBanner)
+end)
+
+stateKnightBanner:clear_callbacks()
+stateKnightBanner:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot3
+	actor.image_speed = 0.5
+	data.fired = 0
+end)
+
+stateKnightBanner:onStep(function( actor, data )
+	if data.fired == 0 then
+		data.fired = 1
+		actor:sound_play(sound_shoot4, .7, 0.9 + math.random() * 0.8)
+
+		if actor:is_authority() then
+			local damage = actor:skill_get_damage(knightSpecialAlt)
+
+			local buff_shadow_clone = Buff.find("ror", "shadowClone")
+			for i=0, actor:buff_stack_count(buff_shadow_clone) do
+				attack = actor:fire_explosion(actor.x, actor.y + 10, 50, 150, damage, gm.constants.sBanditShoot2Explosion, nil, true)
+			end
+		end
+
+		local banner = obj_banner:create(actor.x, actor.y)
+	end
+
+	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
 end)
