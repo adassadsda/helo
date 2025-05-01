@@ -131,6 +131,8 @@ local knightBeyblade = Skill.new(NAMESPACE, "knightBeyblade")
 local knightShieldOrbit = Skill.new(NAMESPACE, "knightShieldOrbit")
 local knightShieldOrbitScepter = Skill.new(NAMESPACE, "knightShieldOrbitScepter")
 local knightShockwave = Skill.new(NAMESPACE, "knightShockwave")
+local knightConsecrate = Skill.new(NAMESPACE, "knightConsecrate")
+local knightConsecrateScepter = Skill.new(NAMESPACE, "knightConsecrateScepter")
 
 
 -------- DUEL!
@@ -619,16 +621,23 @@ stateKnightParry:onEnter(function( actor, data )
 
 	GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.utility), knightBeyblade, Skill.OVERRIDE_PRIORITY.cancel)
 
-	if actor:item_stack_count(Item.find("ror", "ancientScepter")) >= 1 then
-		GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbitScepter, Skill.OVERRIDE_PRIORITY.cancel)
-	else
-		GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbit, Skill.OVERRIDE_PRIORITY.cancel)
+	if actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecial.value then
+		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
+			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbitScepter, Skill.OVERRIDE_PRIORITY.cancel)
+		else
+			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbit, Skill.OVERRIDE_PRIORITY.cancel)
+		end
+	elseif actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecialAlt.value then
+		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
+			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrateScepter, Skill.OVERRIDE_PRIORITY.cancel)
+		else
+			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrate, Skill.OVERRIDE_PRIORITY.cancel)
+		end
 	end
-	
-	
 end)
 
 stateKnightParry:onStep(function( actor, data )
+	actor:skill_util_fix_hspeed()
 	actor:set_immune(3)
 
 	if Global._current_frame - react_start >= react_window then
@@ -645,10 +654,18 @@ stateKnightParry:onExit(function( actor, data )
 
 	GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.utility), knightBeyblade, Skill.OVERRIDE_PRIORITY.cancel)
 
-	if actor:item_stack_count(Item.find("ror", "ancientScepter")) >= 1 then
-		GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbitScepter, Skill.OVERRIDE_PRIORITY.cancel)
-	else
-		GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbit, Skill.OVERRIDE_PRIORITY.cancel)
+	if actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecial.value then
+		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
+			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbitScepter, Skill.OVERRIDE_PRIORITY.cancel)
+		else
+			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbit, Skill.OVERRIDE_PRIORITY.cancel)
+		end
+	elseif actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecialAlt.value then
+		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
+			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrateScepter, Skill.OVERRIDE_PRIORITY.cancel)
+		else
+			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrate, Skill.OVERRIDE_PRIORITY.cancel)
+		end
 	end
 end)
 
@@ -743,7 +760,7 @@ stateKnightUtility:onExit(function( actor, data )
 end)
 
 
--------- SPIN!
+-------- FLURRY!
 knightBeyblade.sprite = sprite_skills
 knightBeyblade.subimage = 5
 knightBeyblade.cooldown = 5 * 60
@@ -941,7 +958,7 @@ obj_floating_shield:onStep(function( inst )
 	end
 
 	for _, actor in ipairs(inst:get_collisions(gm.constants.pActorCollisionBase)) do
-		if actor.team ~= inst.team and data.hit_list[actor.id] == nil then
+		if actor.team ~= inst.parent.team and data.hit_list[actor.id] == nil then
 			if gm._mod_net_isHost() then
 				local attack = inst.parent:fire_direct(actor, 0.5, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
 			end
@@ -949,9 +966,9 @@ obj_floating_shield:onStep(function( inst )
 			inst:sound_play(gm.constants.wMercenaryShoot1_3, 0.5, 0.9)
 			data.hit_list[actor.id] = Global._current_frame
 
-		elseif Global._current_frame - data.hit_list[actor.id] <= inst.hit_delay and actor.team ~= inst.team then
+		elseif Global._current_frame - data.hit_list[actor.id] <= inst.hit_delay and actor.team ~= inst.parent.team then
 			if gm._mod_net_isHost() then
-				local attack = inst.parent:fire_direct(actor, 0.9, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
+				local attack = inst.parent:fire_direct(actor, 0.5, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
 			end
 
 			inst:sound_play(gm.constants.wMercenaryShoot1_3, 0.5, 0.9)
@@ -1084,9 +1101,24 @@ end)
 local obj_banner = Object.new(NAMESPACE, "knightBanner")
 obj_banner:set_sprite(gm.constants.sEfWarbanner)
 
+local knightBannerBuff = Buff.new(NAMESPACE, "knightBannerBuff")
+knightBannerBuff.icon_sprite = sprite_invigorate
+
+knightBannerBuff:onStatRecalc(function( actor )
+	actor.armor = actor.armor + 20
+	actor.damage = actor.damage * 1.2
+end)
+
 obj_banner:clear_callbacks()
 obj_banner:onCreate(function( inst )
 	inst:move_contact_solid(270, -1)
+
+	inst.life = 8 * 60
+	inst.radius = 320
+	inst.update_rate = 30
+	inst.parent = -4
+	inst.consecrated = false
+
 	inst.image_speed = 0.2
 end)
 
@@ -1094,6 +1126,51 @@ obj_banner:onStep(function( inst )
 	if inst.image_index >= 5 then
 		inst.image_index = 5
 	end
+
+	if inst.life % inst.update_rate == 0 then
+
+
+		local actors = List.wrap(inst:find_characters_circle(inst.x, inst.y, inst.radius, false, 3))
+
+		for _, target in ipairs(actors) do
+			if target.team ~= inst.parent.team and inst.parent:item_stack_count(Item.find("ror", "ancientScepter")) > 0 and gm._mod_net_isHost() then
+				inst.parent:fire_direct(target, 0.5, inst.parent.image_xscale, inst.x, inst.y, nil, false)
+			elseif target.team == inst.parent.team then
+				if gm.actor_is_classic(target.id) then
+					target:buff_apply(knightBannerBuff, inst.update_rate + 1)
+				else
+					GM.set_buff_time_nosync(target, knightBannerBuff, inst.update_rate + 1)
+				end
+			end
+		end
+	end
+
+	inst.life = inst.life - 1
+	inst.image_alpha = inst.life / 15
+	if inst.life < 0 then
+		inst:destroy()
+	end
+end)
+
+obj_banner:onDraw(function( inst )
+	local a = 0.1 + math.sin(Global._current_frame * 0.02) * 0.05
+	a = a * math.min(1, inst.life / 15)
+
+	local r1 = inst.radius
+	local pulse = (inst.life % 60) / 60
+	local r2 = r1 * (1 - pulse)
+
+	gm.draw_set_alpha(a*10)
+	gm.draw_set_colour(knight.primary_color)
+	gm.draw_circle(inst.x, inst.y, r1, true)
+
+	gm.draw_set_alpha(a)
+	gm.draw_circle(inst.x, inst.y, r1, false)
+
+	gm.draw_set_alpha(a * pulse)
+	gm.draw_circle(inst.x, inst.y, r2, false)
+
+	gm.draw_set_alpha(1)
 end)
 
 
@@ -1146,8 +1223,25 @@ stateKnightBanner:onStep(function( actor, data )
 		end
 
 		local banner = obj_banner:create(actor.x, actor.y)
+		banner.parent = actor
 	end
 
 	actor:skill_util_fix_hspeed()
 	actor:skill_util_exit_state_on_anim_end()
 end)
+
+
+-------- CONSECRATE!
+knightConsecrate.sprite = sprite_skills
+knightConsecrate.subimage = 5
+knightConsecrate.cooldown = 12 * 60
+knightConsecrate.damage = 2
+knightConsecrate.require_key_press = true
+knightConsecrate.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+knightConsecrateScepter.sprite = sprite_skills
+knightConsecrateScepter.subimage = 5
+knightConsecrateScepter.cooldown = 12 * 60
+knightConsecrateScepter.damage = 2
+knightConsecrateScepter.require_key_press = true
+knightConsecrateScepter.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
