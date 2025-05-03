@@ -1120,7 +1120,7 @@ obj_banner:onCreate(function( inst )
 
 	inst.life = 12 * 60
 	inst.radius = 360
-	inst.update_rate = 30
+	inst.update_rate = 5
 	inst.parent = -4
 	inst.scepter = 0
 
@@ -1245,7 +1245,7 @@ obj_consecrated_banner:onCreate(function( inst )
 
 	inst.life = 12 * 60
 	inst.radius = 360
-	inst.update_rate = 30
+	inst.update_rate = 5
 	inst.consecrate_rate = 90
 	inst.parent = -4
 	inst.scepter = 0
@@ -1313,9 +1313,9 @@ obj_consecrated_orb:onCreate(function( inst )
 	inst.life = 8 * 60
 
 	inst.vx = 0
-	inst.vy = 0
-	inst.accelerationx = 0
-	inst.accelerationy = 0
+	inst.vy = 10
+	inst.maxvx = 10
+	inst.maxvy = 10
 	inst.turn_speed = 0.25
 	inst.angle = 90
 
@@ -1323,16 +1323,28 @@ obj_consecrated_orb:onCreate(function( inst )
 end)
 
 obj_consecrated_orb:onStep(function( inst )
-	inst.x = inst.x + inst.vx
-	inst.y = inst.y - inst.vy
+	inst.x = inst.x + (inst.vx * math.cos(math.rad(inst.angle)))
+	inst.y = inst.y - (inst.vy * math.sin(math.rad(inst.angle)))
 
 	if inst.target then
 		dir = gm.point_direction(inst.x, inst.y, inst.target.x, inst.target.y)
 		diff = gm.angle_difference(dir, inst.angle)
-		inst.angle = inst.angle + diff * inst.turn_speed
+		inst.angle = inst.angle + (diff * inst.turn_speed)
 
-		inst.vx = (math.cos(inst.angle) * gm.point_distance(inst.parent.x, inst.parent.y, inst.target.x, inst.target.y))/20
-		inst.vy = (math.sin(inst.angle) * gm.point_distance(inst.parent.x, inst.parent.y, inst.target.x, inst.target.y))/20
+		inst.vx = inst.vx + 0.01
+		inst.vy = inst.vy + 0.01
+
+		if inst.vx > inst.maxvx then
+			inst.vx = inst.maxvx
+		elseif inst.vx < inst.maxvx * -1 then
+			inst.vx = inst.maxvx * -1
+		end
+
+		if inst.vy > inst.maxvy then
+			inst.vy = inst.maxvy
+		elseif inst.vy < inst.maxvy * -1 then
+			inst.vy = inst.maxvy * -1
+		end
 	else
 		local actors = Instance.find_all(gm.constants.pActor)
 		local current = nil
