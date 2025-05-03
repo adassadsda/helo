@@ -53,6 +53,7 @@ local sound_shoot4 =          Resources.sfx_load(NAMESPACE, "KnightShoot4", path
 -------- knight
 local knight = Survivor.new(NAMESPACE, "knight")
 local knight_id = knight.value
+local __quality = 3
 
 -- stats setup
 knight:set_stats_base({
@@ -1237,6 +1238,13 @@ local objConsecratedBanner = Object.new(NAMESPACE, "knightConsecratedBanner")
 objConsecratedBanner:set_sprite(gm.constants.sEfWarbanner)
 
 local objEfConsecrate = Object.new(NAMESPACE, "knightEfConsecrate")
+objEfConsecrate:set_sprite(gm.constants.sEfArtiStarIdle)
+local partConsecrate = Particle.new(NAMESPACE, "knightConsecrate")
+
+partConsecrate:set_shape(Particle.SHAPE.star)
+partConsecrate:set_life(15, 25)
+partConsecrate:set_size(0.08, 0.12, -0.005, 0)
+gm.part_type_colour3(partConsecrate.value, COLOR_BRIGHT, Color.ORANGE, Color.ORANGE)
 
 objConsecratedBanner:clear_callbacks()
 objConsecratedBanner:onCreate(function( inst )
@@ -1250,6 +1258,8 @@ objConsecratedBanner:onCreate(function( inst )
 	inst.scepter = 0
 
 	inst.image_speed = 0.2
+
+	inst:get_data().stars = {}
 end)
 
 objConsecratedBanner:onStep(function( inst )
@@ -1271,21 +1281,41 @@ objConsecratedBanner:onStep(function( inst )
 				end
 			end
 		end
+
+		local allies = List.wrap(gm.find_characters_circle(inst.x, inst.y, inst.radius, true, inst.parent.team, true))
+		local stars = inst:get_data().stars
+		if #allies > 0 then
+			for i, star in ipairs(stars) do 
+				star.target = allies[math.random(1, #allies)]
+				table.remove(stars, i)
+			end
+		end
+
 	end
 
 	if inst.life % inst.consecrate_rate == 0 then
-		local allies = List.wrap(gm.find_characters_circle(inst.x, inst.y, inst.radius, true, inst.parent.team, true))
+		local stars = inst:get_data().stars
+		local star = objEfConsecrate:create(inst.x, inst.y - 50)
+		table.insert(stars, star)
+		star.parent = inst.parent
 	end
 
 	inst.life = inst.life - 1
 	inst.image_alpha = inst.life / 15
 	if inst.life < 0 then
+		local stars = inst:get_data().stars
+		print(#stars)
+		for i, star in ipairs(stars) do 
+			star.target = inst.parent
+			stars[i] = nil
+		end
+
 		inst:destroy()
 	end
 end)
 
 objConsecratedBanner:onDraw(function( inst )
-	local a = 0.1 + math.sin(Global._current_frame * 0.02) * 0.05
+	local a = 0.1 + math.sin(Global._current_frame * 0.02) * 0.025
 	a = a * math.min(1, inst.life / 15)
 
 	local r1 = inst.radius
@@ -1303,6 +1333,56 @@ objConsecratedBanner:onDraw(function( inst )
 	gm.draw_circle(inst.x, inst.y, r2, false)
 
 	gm.draw_set_alpha(1)
+end)
+
+objEfConsecrate:onCreate(function( inst ) -- stolen from the malice formula i am NOT remaking all that man
+	inst.parent = -4
+	inst.target = -4
+
+	inst.orbitx = inst.x
+	inst.orbity = inst.y
+	inst.orbit_duration = 0
+
+	inst.fract = 0
+	inst.direction = math.random(360)
+
+	__quality = Global.__pref_graphics_quality
+end)
+
+objEfConsecrate:onStep(function( inst )
+	if not Instance.exists(inst.parent) then self:destroy() return end
+
+	if not Instance.exists(inst.target) then 
+		inst.fract = 0
+		inst.orbit_duration = inst.orbit_duration + 1
+
+		local offset = inst.orbit_duration > 60 and 60 or inst.orbit_duration
+
+		inst.x = inst.orbitx + math.cos((Global._current_frame + inst.direction) /25) * (offset + (inst.direction/20))
+		inst.y = inst.orbity - math.sin((Global._current_frame + inst.direction) /25) * (offset + (inst.direction/20)) / 6
+		inst.xstart = inst.x
+		inst.ystart = inst.y
+	else
+		inst.fract = inst.fract + 0.025
+
+		local target, parent = inst.target, inst.parent
+		local tx, ty = target.x, target.y
+
+		local coff = math.sin(inst.fract * math.pi)
+		inst.x = gm.lerp(inst.xstart, tx, inst.fract) + gm.lengthdir_x(16, inst.direction) * coff
+		inst.y = gm.lerp(inst.ystart, ty, inst.fract) + gm.lengthdir_y(16, inst.direction) * coff
+		
+		if inst.fract + 0.05 > 1 then
+			inst:destroy()
+		end
+	end
+
+	local dx, dy = inst.x - inst.xprevious, inst.y - inst.yprevious
+
+	for i = 0, __quality - 1 do 
+		local f = (i - 1) / (__quality * 1.5) 
+		partConsecrate:create(inst.x - dx * f * math.cos(Global._current_frame/5), inst.y - dx * f * math.sin(Global._current_frame/5), 1, Particle.SYSTEM.above)
+	end
 end)
 
 
