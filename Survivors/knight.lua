@@ -399,10 +399,10 @@ end)
 
 
 -------- SHOCKWAVE!
-obj_shockwave_spawner = Object.new(NAMESPACE, "knightShockwaveSpawner")
+objShockwaveSpawner = Object.new(NAMESPACE, "knightShockwaveSpawner")
 
-obj_shockwave_spawner:clear_callbacks()
-obj_shockwave_spawner:onCreate(function( inst )
+objShockwaveSpawner:clear_callbacks()
+objShockwaveSpawner:onCreate(function( inst )
 	inst.parent = -4
 	inst.dir = 1
 	inst.offset = 60
@@ -411,7 +411,7 @@ obj_shockwave_spawner:onCreate(function( inst )
 	inst.length = 10
 end)
 
-obj_shockwave_spawner:onStep(function( inst )
+objShockwaveSpawner:onStep(function( inst )
 	if Global._current_frame - inst.start >= 5 then
 		inst.start = Global._current_frame
 
@@ -467,7 +467,7 @@ stateKnightShockwave:onStep(function( actor, data )
 			end
 		end
 
-		local shockwave = obj_shockwave_spawner:create(actor.x, actor.y)
+		local shockwave = objShockwaveSpawner:create(actor.x, actor.y)
 		shockwave.parent = actor
 		shockwave.dir = actor.image_xscale
 	end
@@ -923,11 +923,11 @@ end)
 
 
 -------- WARD!
-obj_floating_shield = Object.new(NAMESPACE, "knightFloatingShield")
-obj_floating_shield:set_sprite(sprite_invigorate)
+objFloatingShield = Object.new(NAMESPACE, "knightFloatingShield")
+objFloatingShield:set_sprite(sprite_invigorate)
 
-obj_floating_shield:clear_callbacks()
-obj_floating_shield:onCreate(function( inst )
+objFloatingShield:clear_callbacks()
+objFloatingShield:onCreate(function( inst )
 	inst.parent = -4
 	inst.speed = 2
 	inst.lifetime = 6 * 60
@@ -939,7 +939,7 @@ obj_floating_shield:onCreate(function( inst )
 	data.hit_list = {}
 end)
 
-obj_floating_shield:onStep(function( inst )
+objFloatingShield:onStep(function( inst )
 	local data = inst:get_data()
 
 	if not Instance.exists(inst.parent) then
@@ -1055,7 +1055,7 @@ stateKnightShieldOrbit:onStep(function( actor, data )
 
 		local shield_count = 2 + actor:item_stack_count(Item.find("ror", "ancientScepter"))
 		for i = 1, shield_count do 
-			local shield = obj_floating_shield:create(actor.x, actor.y)
+			local shield = objFloatingShield:create(actor.x, actor.y)
 			shield.parent = actor
 			shield.initial_radians = (2 * math.pi)/shield_count * i
 		end
@@ -1101,8 +1101,8 @@ end)
 
 
 -------- RALLY!
-local obj_banner = Object.new(NAMESPACE, "knightBanner")
-obj_banner:set_sprite(gm.constants.sEfWarbanner)
+local objBanner = Object.new(NAMESPACE, "knightBanner")
+objBanner:set_sprite(gm.constants.sEfWarbanner)
 
 local knightBannerBuff = Buff.new(NAMESPACE, "knightBannerBuff")
 knightBannerBuff.icon_sprite = sprite_invigorate
@@ -1114,8 +1114,8 @@ knightBannerBuff:onStatRecalc(function( actor )
 	actor.vHmax = actor.pHmax + 1.2
 end)
 
-obj_banner:clear_callbacks()
-obj_banner:onCreate(function( inst )
+objBanner:clear_callbacks()
+objBanner:onCreate(function( inst )
 	inst:move_contact_solid(270, -1)
 
 	inst.life = 12 * 60
@@ -1127,7 +1127,7 @@ obj_banner:onCreate(function( inst )
 	inst.image_speed = 0.2
 end)
 
-obj_banner:onStep(function( inst )
+objBanner:onStep(function( inst )
 	if inst.image_index >= 5 then
 		inst.image_index = 5
 	end
@@ -1155,7 +1155,7 @@ obj_banner:onStep(function( inst )
 	end
 end)
 
-obj_banner:onDraw(function( inst )
+objBanner:onDraw(function( inst )
 	local a = 0.1 + math.sin(Global._current_frame * 0.02) * 0.05
 	a = a * math.min(1, inst.life / 15)
 
@@ -1222,7 +1222,7 @@ stateKnightBanner:onStep(function( actor, data )
 			end
 		end
 
-		local banner = obj_banner:create(actor.x, actor.y)
+		local banner = objBanner:create(actor.x, actor.y)
 		banner.parent = actor
 		banner.scepter = actor:item_stack_count(Item.find("ror", "ancientScepter"))
 	end
@@ -1233,14 +1233,13 @@ end)
 
 
 -------- CONSECRATE!
-local obj_consecrated_banner = Object.new(NAMESPACE, "knightConsecratedBanner")
-obj_consecrated_banner:set_sprite(gm.constants.sEfWarbanner)
+local objConsecratedBanner = Object.new(NAMESPACE, "knightConsecratedBanner")
+objConsecratedBanner:set_sprite(gm.constants.sEfWarbanner)
 
-local obj_consecrated_orb = Object.new(NAMESPACE, "knightOrb")
-obj_consecrated_orb:set_sprite(gm.constants.sEfWormOrbIdle)
+local objEfConsecrate = Object.new(NAMESPACE, "knightEfConsecrate")
 
-obj_consecrated_banner:clear_callbacks()
-obj_consecrated_banner:onCreate(function( inst )
+objConsecratedBanner:clear_callbacks()
+objConsecratedBanner:onCreate(function( inst )
 	inst:move_contact_solid(270, -1)
 
 	inst.life = 12 * 60
@@ -1253,7 +1252,7 @@ obj_consecrated_banner:onCreate(function( inst )
 	inst.image_speed = 0.2
 end)
 
-obj_consecrated_banner:onStep(function( inst )
+objConsecratedBanner:onStep(function( inst )
 	if inst.image_index >= 5 then
 		inst.image_index = 5
 	end
@@ -1275,8 +1274,7 @@ obj_consecrated_banner:onStep(function( inst )
 	end
 
 	if inst.life % inst.consecrate_rate == 0 then
-		local orb = obj_consecrated_orb:create(inst.x, inst.y - 35)
-		orb.parent = inst.parent
+		local allies = List.wrap(gm.find_characters_circle(inst.x, inst.y, inst.radius, true, inst.parent.team, true))
 	end
 
 	inst.life = inst.life - 1
@@ -1286,7 +1284,7 @@ obj_consecrated_banner:onStep(function( inst )
 	end
 end)
 
-obj_consecrated_banner:onDraw(function( inst )
+objConsecratedBanner:onDraw(function( inst )
 	local a = 0.1 + math.sin(Global._current_frame * 0.02) * 0.05
 	a = a * math.min(1, inst.life / 15)
 
@@ -1305,84 +1303,6 @@ obj_consecrated_banner:onDraw(function( inst )
 	gm.draw_circle(inst.x, inst.y, r2, false)
 
 	gm.draw_set_alpha(1)
-end)
-
-obj_consecrated_orb:clear_callbacks()
-obj_consecrated_orb:onCreate(function( inst )
-	inst.parent = -4
-	inst.life = 8 * 60
-
-	inst.vx = 0
-	inst.vy = 10
-	inst.maxvx = 10
-	inst.maxvy = 10
-	inst.turn_speed = 0.25
-	inst.angle = 90
-
-	inst.target = nil
-end)
-
-obj_consecrated_orb:onStep(function( inst )
-	inst.x = inst.x + (inst.vx * math.cos(math.rad(inst.angle)))
-	inst.y = inst.y - (inst.vy * math.sin(math.rad(inst.angle)))
-
-	if inst.target then
-		dir = gm.point_direction(inst.x, inst.y, inst.target.x, inst.target.y)
-		diff = gm.angle_difference(dir, inst.angle)
-		inst.angle = inst.angle + (diff * inst.turn_speed)
-
-		inst.vx = inst.vx + 0.01
-		inst.vy = inst.vy + 0.01
-
-		if inst.vx > inst.maxvx then
-			inst.vx = inst.maxvx
-		elseif inst.vx < inst.maxvx * -1 then
-			inst.vx = inst.maxvx * -1
-		end
-
-		if inst.vy > inst.maxvy then
-			inst.vy = inst.maxvy
-		elseif inst.vy < inst.maxvy * -1 then
-			inst.vy = inst.maxvy * -1
-		end
-	else
-		local actors = Instance.find_all(gm.constants.pActor)
-		local current = nil
-
-		for _, actor in ipairs(actors) do
-			if actor.team ~= inst.parent.team then
-				if current then
-					local d1 = gm.point_distance(inst.parent.x, inst.parent.y, current.x, current.y)
-					local d2 = gm.point_distance(inst.parent.x, inst.parent.y, actor.x, actor.y)
-
-					if d1 > d2 then
-						current = actor
-					end
-				else
-					current = actor
-				end
-			end
-		end
-
-		if current then
-			inst.target = current
-		end
-	end
-
-	local actor_collisions, _ = inst:get_collisions(gm.constants.pActorCollisionBase)
-    for _, actor in ipairs(actor_collisions) do
-		if inst.parent:attack_collision_canhit(actor) then
-			inst.parent:fire_explosion(inst.x, inst.y, 75, 75, 4.0, gm.constants.sHuntressMine1Explosion, nil, true)
-            inst:destroy()
-            return
-        end
-    end
-
-	if inst.life <= 0 then
-		inst:destroy()
-	end
-
-	inst.life = inst.life - 1
 end)
 
 
@@ -1434,7 +1354,7 @@ stateKnightConsecrate:onStep(function( actor, data )
 			end
 		end
 
-		local consecrated_banner = obj_consecrated_banner:create(actor.x, actor.y)
+		local consecrated_banner = objConsecratedBanner:create(actor.x, actor.y)
 		consecrated_banner.parent = actor
 		consecrated_banner.scepter = actor:item_stack_count(Item.find("ror", "ancientScepter"))
 	end
