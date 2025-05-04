@@ -1109,8 +1109,16 @@ local knightBannerBuff = Buff.new(NAMESPACE, "knightBannerBuff")
 knightBannerBuff.icon_sprite = sprite_invigorate
 
 knightBannerBuff:onStatRecalc(function( actor )
+	local secondary = actor:get_active_skill(Skill.SLOT.secondary)
+	local utility = actor:get_active_skill(Skill.SLOT.utility)
+	local special = actor:get_active_skill(Skill.SLOT.special)
+
+	secondary.cooldown = math.ceil(secondary.cooldown * 0.6)
+	utility.cooldown = math.ceil(utility.cooldown * 0.6)
+	special.cooldown = math.ceil(special.cooldown * 0.6)
+
 	actor.armor = actor.armor + 20
-	actor.critical_chance = actor.critical_chance + 30
+	actor.hp_regen = actor.hp_regen + actor.maxhp * .0005
 	actor.pHmax = actor.pHmax + 0.8
 	actor.vHmax = actor.pHmax + 1.2
 end)
@@ -1303,10 +1311,19 @@ objConsecratedBanner:onStep(function( inst )
 	inst.life = inst.life - 1
 	inst.image_alpha = inst.life / 15
 	if inst.life < 0 then
+		local actors = Instance.find_all(gm.constants.pActor)
+		local allies = {}
+
+		for _, actor in ipairs(actors) do
+			if actor.team == inst.parent.team then
+				table.insert(allies, actor)
+			end
+		end
+
 		local stars = inst:get_data().stars
 		print(#stars)
 		for i, star in ipairs(stars) do 
-			star.target = inst.parent
+			star.target = allies[math.random(1, #allies)]
 			stars[i] = nil
 		end
 
@@ -1373,6 +1390,8 @@ objEfConsecrate:onStep(function( inst )
 		inst.y = gm.lerp(inst.ystart, ty, inst.fract) + gm.lengthdir_y(16, inst.direction) * coff
 		
 		if inst.fract + 0.05 > 1 then
+			inst.target:heal(inst.target.maxhp * .05)
+			inst.target:add_barrier(inst.target.maxhp * .1)
 			inst:destroy()
 		end
 	end
