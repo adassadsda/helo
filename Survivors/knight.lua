@@ -120,6 +120,9 @@ knightSpecial:set_skill_upgrade(knightSpecialScepter)
 local knightPrimaryAlt = Skill.new(NAMESPACE, "knightGreatsword")
 knight:add_primary(knightPrimaryAlt)
 
+local knightSecondaryAlt = Skill.new(NAMESPACE, "knightGuard")
+knight:add_secondary(knightSecondaryAlt)
+
 local knightSpecialAlt = Skill.new(NAMESPACE, "knightBanner")
 knight:add_special(knightSpecialAlt)
 local knightSpecialAltScepter = Skill.new(NAMESPACE, "knightBannerScepter")
@@ -128,12 +131,14 @@ knightSpecialAlt:set_skill_upgrade(knightSpecialAltScepter)
 
 -- parry enhanced skills
 local knightShieldBash = Skill.new(NAMESPACE, "knightShieldBash")
+local knightShockwave = Skill.new(NAMESPACE, "knightShockwave")
 local knightBeyblade = Skill.new(NAMESPACE, "knightBeyblade")
 local knightShieldOrbit = Skill.new(NAMESPACE, "knightShieldOrbit")
 local knightShieldOrbitScepter = Skill.new(NAMESPACE, "knightShieldOrbitScepter")
-local knightShockwave = Skill.new(NAMESPACE, "knightShockwave")
 local knightConsecrate = Skill.new(NAMESPACE, "knightConsecrate")
 local knightConsecrateScepter = Skill.new(NAMESPACE, "knightConsecrateScepter")
+
+local knightRetaliate = Skill.new(NAMESPACE, "knightRetaliate")
 
 
 -------- DUEL!
@@ -399,7 +404,7 @@ stateKnightGreatsword:onStep(function( actor, data )
 end)
 
 
--------- SHOCKWAVE!
+-------- ERADICATE!
 objShockwaveSpawner = Object.new(NAMESPACE, "knightShockwaveSpawner")
 
 objShockwaveSpawner:clear_callbacks()
@@ -506,15 +511,6 @@ knightArmorBuff:onStatRecalc(function( actor )
 	actor.armor = actor.armor + 100
 end)
 
--- handling what to do when hit while guarding
-Callback.add(Callback.TYPE.onDamagedProc, "SSKnightHandleBlocking", function( actor, hit_info )
-	if actor.object_index == gm.constants.oP and actor.class == knight.value then
-		if blocking == 1 then
-			actor:sound_play(sound_shoot2_impact, .5, 0.9 + math.random() * 0.8)
-		end
-	end
-end)
-
 -- actual skill
 knightSecondary:clear_callbacks()
 knightSecondary:onActivate(function( actor )
@@ -557,7 +553,7 @@ stateKnightSecondary:onStep(function( actor, data ) -- ok ill break this state d
 		actor:sound_play(sound_shoot2, .5, 1.2)
 	end
 
-	-- tallies your hits youve parried
+	-- puts you in the parry state so you can choose a powered up ability
 	if actor.deflect == 2 then
 		actor:sound_play(sound_shoot2_deflect, .6, 1)
 
@@ -613,24 +609,24 @@ stateKnightParry:onEnter(function( actor, data )
 
 	
 	if actor:get_default_skill(Skill.SLOT.primary).skill_id == knightPrimary.value then
-		GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.primary), knightShieldBash, Skill.OVERRIDE_PRIORITY.cancel)
+		actor:add_skill_override(Skill.SLOT.primary, knightShieldBash, 1)
 	elseif actor:get_default_skill(Skill.SLOT.primary).skill_id == knightPrimaryAlt.value then
-		GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.primary), knightShockwave, Skill.OVERRIDE_PRIORITY.cancel)
+		actor:add_skill_override(Skill.SLOT.primary, knightShockwave, 1)
 	end
 
-	GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.utility), knightBeyblade, Skill.OVERRIDE_PRIORITY.cancel)
+	actor:add_skill_override(Skill.SLOT.utility, knightBeyblade, 1)
 
 	if actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecial.value then
 		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
-			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbitScepter, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:add_skill_override(Skill.SLOT.special, knightShieldOrbitScepter, 1)
 		else
-			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbit, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:add_skill_override(Skill.SLOT.special, knightShieldOrbit, 1)
 		end
 	elseif actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecialAlt.value then
 		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
-			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrateScepter, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:add_skill_override(Skill.SLOT.special, knightConsecrateScepter, 1)
 		else
-			GM._mod_ActorSkillSlot_addOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrate, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:add_skill_override(Skill.SLOT.special, knightConsecrate, 1)
 		end
 	end
 end)
@@ -646,26 +642,149 @@ end)
 
 stateKnightParry:onExit(function( actor, data )
 	if actor:get_default_skill(Skill.SLOT.primary).skill_id == knightPrimary.value then
-		GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.primary), knightShieldBash, Skill.OVERRIDE_PRIORITY.cancel)
+		actor:remove_skill_override(Skill.SLOT.primary, knightShieldBash, 1)
 	elseif actor:get_default_skill(Skill.SLOT.primary).skill_id == knightPrimaryAlt.value then
-		GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.primary), knightShockwave, Skill.OVERRIDE_PRIORITY.cancel)
+		actor:remove_skill_override(Skill.SLOT.primary, knightShockwave, 1)
 	end
-
-	GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.utility), knightBeyblade, Skill.OVERRIDE_PRIORITY.cancel)
 
 	if actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecial.value then
 		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
-			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbitScepter, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:remove_skill_override(Skill.SLOT.special, knightShieldOrbitScepter, 1)
 		else
-			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightShieldOrbit, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:remove_skill_override(Skill.SLOT.special, knightShieldOrbit, 1)
 		end
 	elseif actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecialAlt.value then
 		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
-			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrateScepter, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:remove_skill_override(Skill.SLOT.special, knightConsecrateScepter, 1)
 		else
-			GM._mod_ActorSkillSlot_removeOverride(actor:actor_get_skill_slot(Skill.SLOT.special), knightConsecrate, Skill.OVERRIDE_PRIORITY.cancel)
+			actor:remove_skill_override(Skill.SLOT.special, knightConsecrate, 1)
 		end
 	end
+end)
+
+
+-------- PREVAIL!
+local tanking = 0
+local parried_hits = 0
+local tanked_damage = 0
+
+knightSecondaryAlt.sprite = sprite_skills
+knightSecondaryAlt.subimage = 1
+knightSecondaryAlt.damage = 1.0
+knightSecondaryAlt.cooldown = 5 * 60
+knightSecondaryAlt.require_key_press = false
+knightSecondaryAlt.does_change_activity_state = true
+knightSecondaryAlt.hold_facing_direction = true
+knightSecondaryAlt.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.priority_skill
+
+local stateKnightSecondaryAlt = State.new(NAMESPACE, "knightSecondaryAlt")
+
+knightSecondaryAlt:clear_callbacks()
+knightSecondaryAlt:onActivate(function( actor )
+	actor:enter_state(stateKnightSecondaryAlt)
+end)
+
+stateKnightSecondaryAlt:clear_callbacks()
+stateKnightSecondaryAlt:onEnter(function( actor, data )
+	actor.image_index2 = 0
+	actor.deflect = 1
+
+	data.exit = 0
+	data.primed = 0
+
+	tanking = 1
+	parry_start = Global._current_frame
+
+	actor:skill_util_strafe_init()
+	actor:skill_util_strafe_turn_init()
+	actor:buff_apply(knightArmorBuff, 1, 1)
+	actor:freeze_active_skill(Skill.SLOT.secondary)
+end)
+
+stateKnightSecondaryAlt:onStep(function( actor, data )
+	actor.sprite_index2 = sprite_shoot2_half
+	actor:skill_util_strafe_update(.75, 0.5)
+	actor:skill_util_step_strafe_sprites()
+	actor:skill_util_strafe_turn_update()
+
+	if actor.image_index2 > 3 then
+		actor.image_index2 = 3.1
+	end
+
+	if data.primed == 0 then
+		data.primed = 1
+		actor:sound_play(sound_shoot2, .5, 1.2)
+	end
+
+	if actor.deflect == 2 then
+		actor:sound_play(sound_shoot2_deflect, .6, 1)
+		parried_hits = parried_hits + 1
+		actor.deflect = 1
+	end
+
+	if Global._current_frame - parry_start > parry_window then
+		actor.deflect = 0
+	end
+
+	actor:freeze_active_skill(Skill.SLOT.secondary)
+
+	if actor:is_authority() and not actor:control("skill2", 0) then
+		GM.actor_set_state_networked(actor, -1)
+	end
+end)
+
+stateKnightSecondaryAlt:onExit(function( actor, data )
+	actor:sound_play(sound_shoot2, .5, 0.8)
+	actor:buff_remove(knightArmorBuff, 1)
+
+	tanking = 0
+	actor.deflect = 0
+
+	actor:add_skill_override(Skill.SLOT.secondary, knightRetaliate, 1)
+end)
+
+
+-- handling what to do when hit while guarding
+Callback.add(Callback.TYPE.onDamagedProc, "SSKnightHandleBlocking", function( actor, hit_info )
+	if actor.object_index == gm.constants.oP and actor.class == knight.value then
+		if blocking == 1 then
+			actor:sound_play(sound_shoot2_impact, .5, 0.9 + math.random() * 0.8)
+		elseif tanking == 1 then
+			actor:sound_play(sound_shoot2_impact, .5, 0.9 + math.random() * 0.8)
+			tanked_damage = tanked_damage + hit_info.damage
+		end
+	end
+end)
+
+
+-------- RETALIATE!
+knightRetaliate.sprite = sprite_skills
+knightRetaliate.subimage = 5
+knightRetaliate.damage = 4
+knightRetaliate.cooldown = 0
+knightRetaliate.require_key_press = true
+knightRetaliate.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+local stateKnightRetaliate = State.new(NAMESPACE, "knightRetaliate")
+
+knightRetaliate:clear_callbacks()
+knightRetaliate:onActivate(function( actor )
+	actor:enter_state(stateKnightRetaliate)
+	actor:remove_skill_override(Skill.SLOT.secondary, knightRetaliate, 1)
+end)
+
+stateKnightRetaliate:clear_callbacks()
+stateKnightRetaliate:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot1_3
+	actor.image_speed = 0.35
+
+	data.fired = 0
+end)
+
+stateKnightRetaliate:onStep(function( actor, data )
+	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
 end)
 
 
@@ -679,7 +798,7 @@ knightUtility.damage = 3
 knightUtility.require_key_press = true
 knightUtility.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
 
-local stateKnightUtility = State.new(NAMESPACE, "stateKnightUtility")
+local stateKnightUtility = State.new(NAMESPACE, "knightUtility")
 
 local shoot3_sounds = {sound_shoot3a, sound_shoot3b}
 
@@ -754,8 +873,6 @@ end)
 
 stateKnightUtility:onExit(function( actor, data )
 	hit_enemies_strike:destroy()
-	local cooldown = actor:get_default_skill(Skill.SLOT.utility).cooldown
-	actor:override_active_skill_cooldown(Skill.SLOT.utility, cooldown)
 end)
 
 
@@ -767,7 +884,7 @@ knightBeyblade.damage = 0.8
 knightBeyblade.require_key_press = true
 knightBeyblade.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
 
-local stateKnightBeyblade = State.new(NAMESPACE, "stateKnightBeyblade")
+local stateKnightBeyblade = State.new(NAMESPACE, "knightBeyblade")
 
 -- actual skill
 knightBeyblade:clear_callbacks()
@@ -784,6 +901,9 @@ stateKnightBeyblade:onEnter(function( actor, data )
 	data.previous_index = 0
 
 	hit_enemies_strike = List.new()
+
+	actor:remove_skill_override(Skill.SLOT.utility, knightBeyblade, 1)
+	actor:override_active_skill_cooldown(Skill.SLOT.utility, 900)
 end)
 
 stateKnightBeyblade:onStep(function( actor, data )
@@ -808,12 +928,6 @@ stateKnightBeyblade:onStep(function( actor, data )
 
 	actor:skill_util_exit_state_on_anim_end()
 end)
-
-stateKnightBeyblade:onExit(function( actor, data )
-	local cooldown = actor:get_default_skill(Skill.SLOT.utility).cooldown
-	actor:override_active_skill_cooldown(Skill.SLOT.utility, cooldown)
-end)
-
 
 
 -------- invigorate is such a funny word
@@ -962,21 +1076,23 @@ objFloatingShield:onStep(function( inst )
 	end
 
 	for _, actor in ipairs(inst:get_collisions(gm.constants.pActorCollisionBase)) do
-		if actor.team ~= inst.parent.team and data.hit_list[actor.id] == nil then
-			if gm._mod_net_isHost() then
-				local attack = inst.parent:fire_direct(actor, 0.5, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
+		if actor.team ~= inst.parent.team then
+			if data.hit_list[actor.id] == nil then
+				if gm._mod_net_isHost() then
+					local attack = inst.parent:fire_direct(actor, 0.5, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
+				end
+
+				inst:sound_play(gm.constants.wMercenaryShoot1_3, 0.5, 0.9)
+				data.hit_list[actor.id] = Global._current_frame
+
+			elseif Global._current_frame - data.hit_list[actor.id] <= inst.hit_delay then
+				if gm._mod_net_isHost() then
+					local attack = inst.parent:fire_direct(actor, 0.5, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
+				end
+
+				inst:sound_play(gm.constants.wMercenaryShoot1_3, 0.5, 0.9)
+				data.hit_list[actor.id] = Global._current_frame
 			end
-
-			inst:sound_play(gm.constants.wMercenaryShoot1_3, 0.5, 0.9)
-			data.hit_list[actor.id] = Global._current_frame
-
-		elseif Global._current_frame - data.hit_list[actor.id] <= inst.hit_delay and actor.team ~= inst.parent.team then
-			if gm._mod_net_isHost() then
-				local attack = inst.parent:fire_direct(actor, 0.5, inst.direction, inst.x, inst.y, gm.constants.sBite3).attack_info
-			end
-
-			inst:sound_play(gm.constants.wMercenaryShoot1_3, 0.5, 0.9)
-			data.hit_list[actor.id] = Global._current_frame
 		end
 	end
 
@@ -1094,11 +1210,6 @@ stateKnightShieldOrbit:onStep(function( actor, data )
 
 	actor:skill_util_exit_state_on_anim_end()
 end) 
-
-stateKnightShieldOrbit:onExit(function( actor, data )
-	local cooldown = actor:get_default_skill(Skill.SLOT.special).cooldown
-	actor:override_active_skill_cooldown(Skill.SLOT.special, cooldown)
-end)
 
 
 -------- RALLY!
@@ -1461,8 +1572,3 @@ stateKnightConsecrate:onStep(function( actor, data )
 	actor:skill_util_fix_hspeed()
 	actor:skill_util_exit_state_on_anim_end()
 end) 
-
-stateKnightConsecrate:onExit(function( actor, data )
-	local cooldown = actor:get_default_skill(Skill.SLOT.special).cooldown
-	actor:override_active_skill_cooldown(Skill.SLOT.special, cooldown)
-end)
