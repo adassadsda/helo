@@ -565,12 +565,11 @@ stateKnightSecondary:onStep(function( actor, data ) -- ok ill break this state d
 		invigorateArea.image_blend = Color.from_rgb(220,228,164)
 
 		if actor:is_authority() then -- just a fun little parry blast yayyyy
-			local damage = actor:skill_get_damage(knightSpecial)
-			local sparks = data.fired == 1 and sprite_sparks1 or sprite_sparks2
+			local damage = actor:skill_get_damage(knightSecondary)
 
 			local buff_shadow_clone = Buff.find("ror", "shadowClone")
 			for i=0, actor:buff_stack_count(buff_shadow_clone) do
-				attack = actor:fire_explosion(actor.x, actor.y, 150, 150, damage, sprite_sparks3, sparks, true)
+				attack = actor:fire_explosion(actor.x, actor.y, 150, 150, damage, sprite_sparks3, nil, true)
 				attack.attack_info:allow_stun()
 				attack.attack_info:set_stun(1, actor.image_xscale, standard)
 			end
@@ -647,6 +646,8 @@ stateKnightParry:onExit(function( actor, data )
 		actor:remove_skill_override(Skill.SLOT.primary, knightShockwave, 1)
 	end
 
+	actor:remove_skill_override(Skill.SLOT.utility, knightBeyblade, 1)
+
 	if actor:get_default_skill(Skill.SLOT.special).skill_id == knightSpecial.value then
 		if actor:item_stack_count(Item.find("ror", "ancientScepter")) > 0 then
 			actor:remove_skill_override(Skill.SLOT.special, knightShieldOrbitScepter, 1)
@@ -682,6 +683,7 @@ local stateKnightSecondaryAlt = State.new(NAMESPACE, "knightSecondaryAlt")
 knightSecondaryAlt:clear_callbacks()
 knightSecondaryAlt:onActivate(function( actor )
 	actor:enter_state(stateKnightSecondaryAlt)
+	actor:add_skill_override(Skill.SLOT.secondary, knightRetaliate, 1)
 end)
 
 stateKnightSecondaryAlt:clear_callbacks()
@@ -739,8 +741,6 @@ stateKnightSecondaryAlt:onExit(function( actor, data )
 
 	tanking = 0
 	actor.deflect = 0
-
-	actor:add_skill_override(Skill.SLOT.secondary, knightRetaliate, 1)
 end)
 
 
@@ -760,7 +760,7 @@ end)
 -------- RETALIATE!
 knightRetaliate.sprite = sprite_skills
 knightRetaliate.subimage = 5
-knightRetaliate.damage = 4
+knightRetaliate.damage = 1
 knightRetaliate.cooldown = 0
 knightRetaliate.require_key_press = true
 knightRetaliate.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
@@ -785,6 +785,30 @@ end)
 stateKnightRetaliate:onStep(function( actor, data )
 	actor:skill_util_fix_hspeed()
 	actor:skill_util_exit_state_on_anim_end()
+	actor:refresh_skill(Skill.SLOT.secondary)
+
+	if data.fired == 0 then
+		data.fired = 1
+		local base_damage = actor:skill_get_damage(knightSecondaryAlt)
+		local parry_factor = 1 + parried_hits
+		local tank_factor = tanked_damage/10
+		local damage = (base_damage + tank_factor) * parry_factor 
+
+		local buff_shadow_clone = Buff.find("ror", "shadowClone")
+		for i=0, actor:buff_stack_count(buff_shadow_clone) do
+			attack = actor:fire_explosion(actor.x, actor.y, 150, 150, base_damage, sprite_sparks3, nil, true)
+			attack.attack_info:allow_stun()
+			attack.attack_info:set_stun(1, actor.image_xscale, standard)
+		end
+	end
+
+	local skill = actor:get_default_skill(Skill.SLOT.secondary)
+	skill.remove_stock(skill, skill, 1)
+end)
+
+stateKnightRetaliate:onExit(function( actor, data )
+	parried_hits = 0
+	tanked_damage = 0
 end)
 
 
@@ -901,9 +925,6 @@ stateKnightBeyblade:onEnter(function( actor, data )
 	data.previous_index = 0
 
 	hit_enemies_strike = List.new()
-
-	actor:remove_skill_override(Skill.SLOT.utility, knightBeyblade, 1)
-	actor:override_active_skill_cooldown(Skill.SLOT.utility, 900)
 end)
 
 stateKnightBeyblade:onStep(function( actor, data )
@@ -927,6 +948,11 @@ stateKnightBeyblade:onStep(function( actor, data )
 	end
 
 	actor:skill_util_exit_state_on_anim_end()
+end)
+
+stateKnightBeyblade:onExit(function( actor, data )
+	local skill = actor:get_default_skill(Skill.SLOT.utility)
+	skill.remove_stock(skill, skill, 1)
 end)
 
 
@@ -1210,6 +1236,11 @@ stateKnightShieldOrbit:onStep(function( actor, data )
 
 	actor:skill_util_exit_state_on_anim_end()
 end) 
+
+stateKnightShieldOrbit:onExit(function( actor, data )
+	local skill = actor:get_default_skill(Skill.SLOT.special)
+	skill.remove_stock(skill, skill, 1)
+end)
 
 
 -------- RALLY!
@@ -1572,3 +1603,8 @@ stateKnightConsecrate:onStep(function( actor, data )
 	actor:skill_util_fix_hspeed()
 	actor:skill_util_exit_state_on_anim_end()
 end) 
+
+stateKnightConsecrate:onExit(function( actor, data )
+	local skill = actor:get_default_skill(Skill.SLOT.special)
+	skill.remove_stock(skill, skill, 1)
+end)
