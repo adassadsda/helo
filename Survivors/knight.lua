@@ -90,9 +90,9 @@ knight.sprite_portrait = sprite_portrait
 knight.sprite_portrait_small = sprite_portrait_small
 knight.sprite_title = sprite_walk
 
--- strafing setup
 knight:clear_callbacks()
-knight:onInit(function( actor )
+knight:onInit(function(actor) -- setting up the beasts half sprite stuff
+	-- shoutouts to kris for the awesome code i can entirely copy!!
 	local idle_half = Array.new()
 	local walk_half = Array.new()
 	local jump_half = Array.new()
@@ -107,6 +107,7 @@ knight:onInit(function( actor )
 	actor.sprite_fall_half = jump_half
 
 	actor:survivor_util_init_half_sprites()
+	
 end)
 
 -- skills setup
@@ -1394,7 +1395,7 @@ local partConsecrate = Particle.new(NAMESPACE, "knightConsecrate")
 partConsecrate:set_shape(Particle.SHAPE.star)
 partConsecrate:set_life(15, 25)
 partConsecrate:set_size(0.08, 0.12, -0.005, 0)
-gm.part_type_colour3(partConsecrate.value, COLOR_BRIGHT, Color.ORANGE, Color.ORANGE)
+gm.part_type_colour3(partConsecrate.value, COLOR_BRIGHT, Color.ORANGE)
 
 objConsecratedBanner:clear_callbacks()
 objConsecratedBanner:onCreate(function( inst )
