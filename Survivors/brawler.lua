@@ -121,6 +121,29 @@ stateBrawlerPrimary:onStep(function( actor, data )
 	if data.fired == 0 then
 		data.fired = 1
 		actor:skill_util_nudge_forward(5 * actor.image_xscale)
+
+		if actor:is_authority() then
+			local damage = actor:skill_get_damage(brawlerPrimary)
+			local dir = actor.image_xscale
+
+			local buff_shadow_clone = Buff.find("ror", "shadowClone")
+			if not GM.skill_util_update_heaven_cracker(actor, damage, actor.image_xscale) then 
+				if combo == 2 then
+					for i=0, actor:buff_stack_count(buff_shadow_clone) do
+						attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage * 1.25)
+						attack.attack_info:allow_stun()
+						attack.attack_info:set_stun(1, dir, standard)
+						attack.attack_info.knockback_direction = dir
+						attack.attack_info.knockback = 3
+						attack.attack_info.knockup = 5
+					end
+				else
+					for i=0, actor:buff_stack_count(buff_shadow_clone) do
+						attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage)
+					end
+				end
+			end
+		end
 	end
 
 	if actor.image_index + actor.image_speed >= actor.image_number then
@@ -131,4 +154,52 @@ stateBrawlerPrimary:onStep(function( actor, data )
 		end
 		actor:skill_util_reset_activity_state()
 	end
+end)
+
+
+-------- BLAZING UPPERCUT!
+brawlerSecondary.sprite = sprite_skills
+brawlerSecondary.subimage = 1
+brawlerSecondary.cooldown = 3 * 60
+brawlerSecondary.damage = 2.5
+brawlerSecondary.require_key_press = true
+brawlerSecondary.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+local stateBrawlerSecondary = State.new(NAMESPACE, "brawlerSecondary")
+
+brawlerSecondary:clear_callbacks()
+brawlerSecondary:onActivate(function( actor )
+	actor:enter_state(stateBrawlerSecondary)
+end)
+
+stateBrawlerSecondary:clear_callbacks()
+stateBrawlerSecondary:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot2_1
+	actor.image_speed = 0.25
+
+	data.fired = 0
+end)
+
+stateBrawlerSecondary:onStep(function( actor, data )
+	if data.fired == 0 then
+		data.fired = 1
+		actor.pVspeed = -1.5 * actor.pVmax
+
+		if actor:is_authority() then
+			local damage = actor:skill_get_damage(brawlerSecondary)
+			local dir = actor.image_xscale
+
+
+			if not GM.skill_util_update_heaven_cracker(actor, damage, actor.image_xscale) then 
+				local buff_shadow_clone = Buff.find("ror", "shadowClone")
+				for i=0, actor:buff_stack_count(buff_shadow_clone) do
+					attack = actor:fire_explosion(actor.x + 20 * dir, actor.y - 20, 60, 100, damage)
+					attack.attack_info.knockup = 10
+				end
+			end
+		end
+	end
+
+	actor:skill_util_exit_state_on_anim_end()
 end)
