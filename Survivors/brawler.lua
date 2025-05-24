@@ -31,6 +31,15 @@ local sprite_slam =       Resources.sprite_load(NAMESPACE, "BrawlerSlam", path.c
 -------- the brawlah
 local brawler = Survivor.new(NAMESPACE, "brawler")
 local brawler_id = brawler.value
+local grabbed = nil
+
+brawler:clear_callbacks()
+brawler:onStep(function( actor )
+	if grabbed then
+		grabbed.x = actor.x + 10 * actor.image_xscale
+		grabbed.y = actor.y - 10
+	end
+end)
 
 brawler:set_stats_base({
 	maxhp = 140,
@@ -63,8 +72,6 @@ brawler.sprite_loadout = sprite_loadout
 brawler.sprite_portrait = sprite_portrait
 brawler.sprite_portrait_small = sprite_portrait_small
 brawler.sprite_title = sprite_walk
-
-brawler:clear_callbacks()
 
 local brawlerPrimary =   brawler:get_primary()
 local brawlerSecondary = brawler:get_secondary()
@@ -279,5 +286,48 @@ stateBrawlerUtility:onStep(function( actor, data )
 
 	data.step = data.step + 1
 	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
+end)
+
+
+-------- GRAB!
+brawlerSpecial.sprite = sprite_skills
+brawlerSpecial.subimage = 3
+brawlerSpecial.cooldown = 5 * 60
+brawlerSpecial.damage = 0
+brawlerSpecial.require_key_press = true
+brawlerSpecial.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+local stateBrawlerSpecial = State.new(NAMESPACE, "brawlerSpecial")
+
+brawlerSpecial:clear_callbacks()
+brawlerSpecial:onActivate(function( actor )
+	actor:enter_state(stateBrawlerSpecial)
+end)
+
+stateBrawlerSpecial:clear_callbacks()
+stateBrawlerSpecial:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot4_1
+	actor.image_speed = 0.35
+end)
+
+stateBrawlerSpecial:onStep(function( actor, data )
+	actor.pHspeed = actor.pHmax * 3 * actor.image_xscale
+
+		local targets = List.new()
+		local x_size = 50
+		local y_size = 25
+
+		actor:collision_rectangle_list(actor.x - x_size, actor.y + y_size, actor.x + x_size, actor.y - y_size, gm.constants.pActor, false, true, targets, false)
+
+		for _, target in ipairs(targets) do
+			if target.team ~= actor.team then
+				grabbed = target
+				GM.actor_set_state_networked(actor, -1)
+			end
+		end
+		targets:destroy()
+
 	actor:skill_util_exit_state_on_anim_end()
 end)
