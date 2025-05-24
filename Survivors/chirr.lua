@@ -196,6 +196,10 @@ chirr:onStep(function( actor )
 			time_since_tether_override = Global._current_frame
 		end
 	end
+
+	for i,v in ipairs(tamed) do
+		v.despawn_time = 9999
+	end
 end)
 
 
@@ -508,9 +512,7 @@ tamedStatChangeItem.is_hidden = true
 
 tamedStatChangeItem:onStatRecalc(function( actor, stack )
 	actor.maxhp = actor.maxhp * allyMaxHPFactor
-	if actor.hp > actor.maxhp then
-		actor.hp = actor.maxhp
-	end
+	actor.hp = actor.hp * allyMaxHPFactor
 end)
 
 elite:clear_callbacks()
@@ -619,6 +621,7 @@ stateChirrSpecial:onEnter(function( actor, data )
 	if taming_target then
 		if taming_target.team ~= actor.team and not taming_target.enemy_party and taming_target.hp <= taming_target.maxhp * 0.5 then -- makes sure they arent on our team, arent a boss, and have half health or less
 			if #tamed < 1 + actor:item_stack_count(Item.find("ror", "ancientScepter")) then -- sets the limit based off our scepter count
+
 				table.insert(tamed, taming_target) -- adds them to our list of total friends
 				taming_target.persistent = true -- this stops our friends from going away each stage
 				taming_target.is_character_enemy_targettable = true -- lets enemies actually target the poor fella
@@ -627,8 +630,6 @@ stateChirrSpecial:onEnter(function( actor, data )
 				taming_target:buff_remove(tameOptionDisplay) -- removes the little tame indicator
 				taming_target:buff_apply(tameHealthbarBuff, 1)
 				GM.elite_set(taming_target, elite) -- sets the elite type of your friend
-				taming_target.hp = taming_target.maxhp * allyMaxHPFactor -- heals them for their troubles
-				print(taming_target.hp, taming_target.maxhp)
 				actor:inventory_items_copy(actor, taming_target, 0) -- gives our friend our items
 				taming_target.y_range = taming_target.y_range + 100 -- lets our friend attack from a bit higher
 			end
@@ -674,7 +675,7 @@ stateChirrTether:onExit(function( actor, data )
 	if data.exit == 0 then
 		if data.step >= tether_tp_charge_time then -- teleport friends nearby if held long enough
 			for _, friend in ipairs(tamed) do
-				GM.teleport_nearby(friend, actor.x, actor.y + 45 )
+				friend:actor_teleport(actor.x, actor.y)
 			end
 		else -- tether the closest fella otherwise
 			if not tethered then

@@ -195,11 +195,89 @@ stateBrawlerSecondary:onStep(function( actor, data )
 				local buff_shadow_clone = Buff.find("ror", "shadowClone")
 				for i=0, actor:buff_stack_count(buff_shadow_clone) do
 					attack = actor:fire_explosion(actor.x + 20 * dir, actor.y - 20, 60, 100, damage)
-					attack.attack_info.knockup = 10
+					attack.attack_info.knockup = 8
 				end
 			end
 		end
 	end
 
+	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
+end)
+
+
+-------- EARTHSHATTER DIVE!
+brawlerUtility.sprite = sprite_skills
+brawlerUtility.subimage = 2
+brawlerUtility.cooldown = 5 * 60
+brawlerUtility.damage = 15
+brawlerUtility.require_key_press = true
+brawlerUtility.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.skill
+
+local stateBrawlerUtility = State.new(NAMESPACE, "brawlerUtility")
+
+brawlerUtility:clear_callbacks()
+brawlerUtility:onActivate(function( actor )
+	actor:enter_state(stateBrawlerUtility)
+end)
+
+stateBrawlerUtility:clear_callbacks()
+stateBrawlerUtility:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot3_1
+	actor.image_speed = 0.25
+
+	data.step = 0
+	data.substate = 0
+	data.final_speed = 0
+end)
+
+stateBrawlerUtility:onStep(function( actor, data )
+	if data.substate == 0 then
+		actor.pVspeed = -1/(1 + data.step/3) * actor.pVmax
+
+		if actor.image_index >= 3 then
+			data.substate = 1
+			data.step = 0
+		end
+	elseif data.substate == 1 then
+		if actor.image_index >= 4 then
+			actor.image_index = 3.9
+		end
+		
+		actor.pVspeed = actor.pVspeed + actor.pVmax * 0.075
+		actor:set_immune(3)
+
+		if not gm.bool(actor.free) then
+			data.substate = 2
+
+			if actor:is_authority() then
+				local base_damage = actor:skill_get_damage(brawlerUtility)
+				local dir = actor.image_xscale
+
+				local damage = base_damage * (data.final_speed/(actor.pVmax * 4))
+				if damage > base_damage then
+					damage = base_damage
+				end
+				print(damage)
+
+				if not GM.skill_util_update_heaven_cracker(actor, damage, actor.image_xscale) then 
+					local buff_shadow_clone = Buff.find("ror", "shadowClone")
+					for i=0, actor:buff_stack_count(buff_shadow_clone) do
+						attack = actor:fire_explosion(actor.x, actor.y, 120, 100, damage, sprite_slam)
+						attack.attack_info:allow_stun()
+						attack.attack_info:set_stun(1.5, dir, standard)
+						attack.attack_info.knockback = 3
+						attack.attack_info.knockup = 5
+					end
+				end
+			end
+		end
+
+		data.final_speed = actor.pVspeed
+	end
+
+	data.step = data.step + 1
+	actor:skill_util_fix_hspeed()
 	actor:skill_util_exit_state_on_anim_end()
 end)
