@@ -1395,7 +1395,6 @@ local partConsecrate = Particle.new(NAMESPACE, "knightConsecrate")
 partConsecrate:set_shape(Particle.SHAPE.star)
 partConsecrate:set_life(15, 25)
 partConsecrate:set_size(0.08, 0.12, -0.005, 0)
-gm.part_type_colour3(partConsecrate.value, COLOR_BRIGHT, Color.ORANGE)
 
 objConsecratedBanner:clear_callbacks()
 objConsecratedBanner:onCreate(function( inst )

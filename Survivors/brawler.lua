@@ -6,12 +6,15 @@ local sprite_portrait =       Resources.sprite_load(NAMESPACE, "BrawlerPortrait"
 local sprite_portrait_small = Resources.sprite_load(NAMESPACE, "BrawlerPortraitSmall", path.combine(SPRITE_PATH, "portraitSmall.png"))
 local sprite_skills =         Resources.sprite_load(NAMESPACE, "BrawlerSkills", path.combine(SPRITE_PATH, "skills.png"), 9)
 
-local sprite_idle =           Resources.sprite_load(NAMESPACE, "BrawlerIdle", path.combine(SPRITE_PATH, "Idle.png"), 1, 9, 10)
-local sprite_walk =           Resources.sprite_load(NAMESPACE, "BrawlerWalk", path.combine(SPRITE_PATH, "Walk.png"), 8, 11, 13)
-local sprite_jump =           Resources.sprite_load(NAMESPACE, "BrawlerJump", path.combine(SPRITE_PATH, "Jump.png"), 1, 9, 12)
-local sprite_climb =          Resources.sprite_load(NAMESPACE, "BrawlerClimb", path.combine(SPRITE_PATH, "Climb.png"), 2, 6, 10)
-local sprite_death =          Resources.sprite_load(NAMESPACE, "BrawlerDeath", path.combine(SPRITE_PATH, "Death.png"), 9, 12, 12)
-local sprite_decoy =          Resources.sprite_load(NAMESPACE, "BrawlerDecoy", path.combine(SPRITE_PATH, "Decoy.png"), 1, 8, 10)
+local sprite_idle =           Resources.sprite_load(NAMESPACE, "BrawlerIdle", path.combine(SPRITE_PATH, "idle.png"), 1, 9, 10)
+local sprite_idle2 =           Resources.sprite_load(NAMESPACE, "BrawlerIdle2", path.combine(SPRITE_PATH, "idle_2.png"), 1, 9, 15)
+local sprite_walk =           Resources.sprite_load(NAMESPACE, "BrawlerWalk", path.combine(SPRITE_PATH, "walk.png"), 8, 11, 13)
+local sprite_walk2 =           Resources.sprite_load(NAMESPACE, "BrawlerWalk2", path.combine(SPRITE_PATH, "walk_2.png"), 8, 11, 20)
+local sprite_jump =           Resources.sprite_load(NAMESPACE, "BrawlerJump", path.combine(SPRITE_PATH, "jump.png"), 1, 9, 12)
+local sprite_jump2 =           Resources.sprite_load(NAMESPACE, "BrawlerJump2", path.combine(SPRITE_PATH, "jump_2.png"), 1, 9, 15)
+local sprite_climb =          Resources.sprite_load(NAMESPACE, "BrawlerClimb", path.combine(SPRITE_PATH, "climb.png"), 2, 6, 10)
+local sprite_death =          Resources.sprite_load(NAMESPACE, "BrawlerDeath", path.combine(SPRITE_PATH, "death.png"), 9, 12, 12)
+local sprite_decoy =          Resources.sprite_load(NAMESPACE, "BrawlerDecoy", path.combine(SPRITE_PATH, "decoy.png"), 1, 8, 10)
 
 local sprite_shoot1_1 =       Resources.sprite_load(NAMESPACE, "BrawlerShoot1_1", path.combine(SPRITE_PATH, "shoot1_1.png"), 6, 13, 20)
 local sprite_shoot1_2 =       Resources.sprite_load(NAMESPACE, "BrawlerShoot1_2", path.combine(SPRITE_PATH, "shoot1_2.png"), 6, 13, 20)
@@ -31,15 +34,8 @@ local sprite_slam =       Resources.sprite_load(NAMESPACE, "BrawlerSlam", path.c
 -------- the brawlah
 local brawler = Survivor.new(NAMESPACE, "brawler")
 local brawler_id = brawler.value
+local player_actor = nil
 local grabbed = nil
-
-brawler:clear_callbacks()
-brawler:onStep(function( actor )
-	if grabbed then
-		grabbed.x = actor.x + 10 * actor.image_xscale
-		grabbed.y = actor.y - 10
-	end
-end)
 
 brawler:set_stats_base({
 	maxhp = 140,
@@ -59,7 +55,6 @@ brawler:set_animations({
 	walk = sprite_walk,
 	jump = sprite_jump,
 	jump_peak = sprite_jump,
-	fall = sprite_fall,
 	climb = sprite_climb,
 	death = sprite_death,
 	decoy = sprite_decoy
@@ -73,6 +68,86 @@ brawler.sprite_portrait = sprite_portrait
 brawler.sprite_portrait_small = sprite_portrait_small
 brawler.sprite_title = sprite_walk
 
+
+local brawlerSelfGrabBuff = Buff.new(NAMESPACE, "brawlerSelfGrabBuff")
+brawlerSelfGrabBuff.show_icon = false
+brawlerSelfGrabBuff.is_timed = false
+
+brawlerSelfGrabBuff:clear_callbacks()
+brawlerSelfGrabBuff:onStatRecalc(function( actor )
+	actor.armor = actor.armor + 100
+end)
+
+local brawlerVictimGrabBuff = Buff.new(NAMESPACE, "brawlerVictimGrabBuff")
+brawlerVictimGrabBuff.show_icon = false
+brawlerVictimGrabBuff.is_timed = false
+
+brawlerVictimGrabBuff:clear_callbacks()
+brawlerVictimGrabBuff:onPostStatRecalc(function( actor )
+	actor.armor = actor.armor - 100
+	actor.pGravity1 = 0
+end)
+
+local function setGrab( actor, state, victim )
+	if state == 1 then
+		if victim then
+			grabbed = victim
+			grabbed:buff_apply(brawlerVictimGrabBuff, 1, 1)
+		end
+
+		actor.sprite_idle = sprite_idle2
+		actor.sprite_walk = sprite_walk2
+		actor.sprite_jump = sprite_jump2
+		actor.sprite_jump_peak = sprite_jump2
+		actor.sprite_fall = sprite_jump2
+
+		actor.can_rope = false
+		actor:buff_apply(brawlerSelfGrabBuff, 1, 1)
+	else
+		if Instance.exists(grabbed) then
+			grabbed:buff_remove(brawlerVictimGrabBuff, 1)
+
+			if grabbed.hp <= 0 then
+				grabbed.pVspeed = 0
+				grabbed.pHspeed = 0
+				grabbed:teleport_nearby(actor.x, actor.y)
+				print(grabbed.hp)
+			end
+
+			grabbed = nil
+		end
+
+		actor.sprite_idle = sprite_idle
+		actor.sprite_walk = sprite_walk
+		actor.sprite_jump = sprite_jump
+		actor.sprite_jump_peak = sprite_jump
+		actor.sprite_fall = sprite_jump
+
+		actor.can_rope = true
+		actor:buff_remove(brawlerSelfGrabBuff, 1)
+	end
+end
+
+Callback.add(Callback.TYPE.onDeath, "SSBrawlerGrabSync", function(victim, fell_out_of_bounds)
+	if Instance.exists(grabbed) then
+		if grabbed.value == victim.value then
+			setGrab(player_actor, 0)
+		end
+	end
+end)
+
+brawler:clear_callbacks()
+brawler:onStep(function( actor )
+	if Instance.exists(grabbed) then
+		grabbed.x = actor.x + 10 * actor.image_xscale
+		grabbed.y = actor.y - 20
+	end
+
+	if not player_actor then
+		player_actor = actor
+	end
+end)
+
 local brawlerPrimary =   brawler:get_primary()
 local brawlerSecondary = brawler:get_secondary()
 local brawlerUtility =   brawler:get_utility()
@@ -81,8 +156,8 @@ local brawlerSpecial =   brawler:get_special()
 
 -------- WAVE PUMMEL!
 local combo = 0
-local combo_window = 0.5 * 60
-local combo_time = 0
+local combo_window = 20
+local combo_time = Global._current_frame
 
 brawlerPrimary.sprite = sprite_skills
 brawlerPrimary.subimage = 0
@@ -94,74 +169,128 @@ brawlerPrimary.does_change_activity_state = true
 brawlerPrimary.hold_facing_direction = true
 brawlerPrimary.required_interrupt_priority = State.ACTOR_STATE_INTERRUPT_PRIORITY.any
 
-local stateBrawlerPrimary = State.new(NAMESPACE, "brawlerPrimary")
+local stateBrawlerPrimary1 = State.new(NAMESPACE, "brawlerPrimary1")
+local stateBrawlerPrimary2 = State.new(NAMESPACE, "brawlerPrimary2")
+local stateBrawlerPrimary3 = State.new(NAMESPACE, "brawlerPrimary3")
 
 brawlerPrimary:clear_callbacks()
 brawlerPrimary:onActivate(function( actor )
-	actor:enter_state(stateBrawlerPrimary)
-end)
-
-stateBrawlerPrimary:clear_callbacks()
-stateBrawlerPrimary:onEnter(function( actor, data )
-	actor.image_index = 0
-	data.fired = 0
-end)
-
-stateBrawlerPrimary:onStep(function( actor, data )
-	actor:skill_util_fix_hspeed()
-	actor:actor_animation_set(actor.sprite_index, 0.25)
-
-	if Global._current_frame - combo_time > combo_window then
+	if Global._current_frame - combo_time <= combo_window then
+		combo = combo + 1
+	else
 		combo = 0
 	end
 
 	if combo == 0 then
-		actor.sprite_index = sprite_shoot1_1
+		actor:enter_state(stateBrawlerPrimary1)
 	elseif combo == 1 then
-		actor.sprite_index = sprite_shoot1_2
+		actor:enter_state(stateBrawlerPrimary2)
 	else
-		actor.sprite_index = sprite_shoot1_3
+		actor:enter_state(stateBrawlerPrimary3)
 	end
 
 	combo_time = Global._current_frame
+end)
 
-	if data.fired == 0 then
+stateBrawlerPrimary1:clear_callbacks()
+stateBrawlerPrimary1:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot1_1
+	data.fired = 0
+end)
+
+stateBrawlerPrimary1:onStep(function( actor, data )
+	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
+	actor:actor_animation_set(actor.sprite_index, 0.2)
+
+	if data.fired == 0 and actor.image_index >= 1 then
 		data.fired = 1
-		actor:skill_util_nudge_forward(5 * actor.image_xscale)
+		actor:skill_util_nudge_forward(6 * actor.image_xscale)
 
 		if actor:is_authority() then
 			local damage = actor:skill_get_damage(brawlerPrimary)
 			local dir = actor.image_xscale
 
-			local buff_shadow_clone = Buff.find("ror", "shadowClone")
 			if not GM.skill_util_update_heaven_cracker(actor, damage, actor.image_xscale) then 
-				if combo == 2 then
-					for i=0, actor:buff_stack_count(buff_shadow_clone) do
-						attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage * 1.25)
-						attack.attack_info:allow_stun()
-						attack.attack_info:set_stun(1, dir, standard)
-						attack.attack_info.knockback_direction = dir
-						attack.attack_info.knockback = 3
-						attack.attack_info.knockup = 5
-					end
-				else
-					for i=0, actor:buff_stack_count(buff_shadow_clone) do
-						attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage)
-					end
+				local buff_shadow_clone = Buff.find("ror", "shadowClone")
+				for i=0, actor:buff_stack_count(buff_shadow_clone) do
+					attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage)
 				end
 			end
 		end
 	end
 
-	if actor.image_index + actor.image_speed >= actor.image_number then
-		if combo >= 2 then
-			combo = 0
-		else
-			combo = combo + 1
-		end
-		actor:skill_util_reset_activity_state()
+	if actor:is_authority() and not actor:control("skill1", 0) and actor.image_index > 1 then
+		GM.actor_set_state_networked(actor, -1)
 	end
 end)
+
+stateBrawlerPrimary2:clear_callbacks()
+stateBrawlerPrimary2:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot1_2
+	data.fired = 0
+end)
+
+stateBrawlerPrimary2:onStep(function( actor, data )
+	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
+	actor:actor_animation_set(actor.sprite_index, 0.2)
+
+	if data.fired == 0 and actor.image_index >= 1 then
+		data.fired = 1
+		actor:skill_util_nudge_forward(6 * actor.image_xscale)
+
+		if actor:is_authority() then
+			local damage = actor:skill_get_damage(brawlerPrimary)
+			local dir = actor.image_xscale
+
+			if not GM.skill_util_update_heaven_cracker(actor, damage, actor.image_xscale) then 
+				local buff_shadow_clone = Buff.find("ror", "shadowClone")
+				for i=0, actor:buff_stack_count(buff_shadow_clone) do
+					attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage)
+				end
+			end
+		end
+	end
+
+	if actor:is_authority() and not actor:control("skill1", 0) and actor.image_index > 3 then
+		GM.actor_set_state_networked(actor, -1)
+	end
+end)
+
+stateBrawlerPrimary3:clear_callbacks()
+stateBrawlerPrimary3:onEnter(function( actor, data )
+	actor.image_index = 0
+	actor.sprite_index = sprite_shoot1_3
+	data.fired = 0
+end)
+
+stateBrawlerPrimary3:onStep(function( actor, data )
+	actor:skill_util_fix_hspeed()
+	actor:skill_util_exit_state_on_anim_end()
+	actor:actor_animation_set(actor.sprite_index, 0.25)
+
+		if data.fired == 0 and actor.image_index >= 2 then
+		data.fired = 1
+		actor:skill_util_nudge_forward(6 * actor.image_xscale)
+
+		if actor:is_authority() then
+			local damage = actor:skill_get_damage(brawlerPrimary)
+			local dir = actor.image_xscale
+
+			if not GM.skill_util_update_heaven_cracker(actor, damage, actor.image_xscale) then 
+				local buff_shadow_clone = Buff.find("ror", "shadowClone")
+				for i=0, actor:buff_stack_count(buff_shadow_clone) do
+					attack = actor:fire_explosion(actor.x + dir * 30, actor.y, 100, 50, damage * 1.25)
+					attack.attack_info.knockup = 4
+				end
+			end
+		end
+	end
+end)
+
 
 
 -------- BLAZING UPPERCUT!
@@ -323,7 +452,7 @@ stateBrawlerSpecial:onStep(function( actor, data )
 
 		for _, target in ipairs(targets) do
 			if target.team ~= actor.team then
-				grabbed = target
+				setGrab(actor, 1, target)
 				GM.actor_set_state_networked(actor, -1)
 			end
 		end
