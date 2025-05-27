@@ -110,7 +110,7 @@ local function setGrab( actor, state, victim )
 			if grabbed.hp <= 0 then
 				grabbed.pVspeed = 0
 				grabbed.pHspeed = 0
-				grabbed:teleport_nearby(actor.x, actor.y)
+				grabbed:move_contact_solid(270, -1)
 				print(grabbed.hp)
 			end
 
@@ -454,6 +454,8 @@ stateBrawlerSpecial:onStep(function( actor, data )
 			if target.team ~= actor.team then
 				setGrab(actor, 1, target)
 				GM.actor_set_state_networked(actor, -1)
+				targets:destroy()
+				return
 			end
 		end
 		targets:destroy()
