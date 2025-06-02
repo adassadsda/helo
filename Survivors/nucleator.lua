@@ -80,3 +80,41 @@ nuke.sprite_loadout = sprite_loadout
 nuke.sprite_portrait = sprite_portrait
 nuke.sprite_portrait_small = sprite_portrait_small
 nuke.sprite_title = sprite_walk
+
+nuke:clear_callbacks()
+nuke:onInit(function(actor) -- setting up the beasts half sprite stuff
+	-- shoutouts to kris for the awesome code i can entirely copy!!
+	local idle_half = Array.new()
+	local walk_half = Array.new()
+	local jump_half = Array.new()
+	idle_half:push(sprite_idle, sprite_idle_half, 0)
+	walk_half:push(sprite_walk, sprite_walk_half, 0, sprite_walk)
+	jump_half:push(sprite_jump, sprite_jump_half, 0)
+
+	actor.sprite_idle_half = idle_half
+	actor.sprite_walk_half = walk_half
+	actor.sprite_jump_half = jump_half
+	actor.sprite_jump_peak_half = jump_half
+	actor.sprite_fall_half = jump_half
+
+	actor:survivor_util_init_half_sprites()
+end)
+
+
+-- charging stuff dont mind me
+local charge = 0
+local charge_rate = 1
+local charge_limit = 60
+local charge_cap = 90
+
+local function NukeChargeStep()
+	charge = charge + 1
+
+	if charge >= charge_cap then return 2
+	elseif charge >= charge_limit return 1
+	else return 0 end
+end
+
+local function NukeChargeRelease()
+	
+end
