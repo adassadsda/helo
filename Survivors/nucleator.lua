@@ -109,6 +109,19 @@ local nukeSpecialScepter = Skill.new(NAMESPACE, "nukeSpecialBoosted")
 nukeSpecial:set_skill_upgrade(nukeSpecialScepter)
 
 
+-- buffs
+local selfRadiation = Buff.new(NAMESPACE, "NukeSelfRad")
+selfRadiation.icon_sprite = gm.constants.sBuffs
+selfRadiation.icon_subimage = 9
+
+selfRadiation:clear_callbacks()
+
+local enemyRadiation = Buff.new(NAMESPACE, "NukeEnemyRad")
+enemyRadiation.show_icon = false
+
+enemyRadiation:clear_callbacks()
+
+
 -- charging stuff dont mind me
 local charge = 0
 local charge_rate = 5
@@ -124,7 +137,7 @@ local function NukeChargeStep(actor)
 		charge = charge + charge_rate
 		charge_tick = 0
 
-		if charge >= charge_limit then
+		if charge >= charge_limit and actor:buff_stack_count(selfRadiation) == 0 then
 			local dmg = actor.hp * 0.02
 			gm.damage_inflict(actor.id, dmg, 10, -25, actor.x, actor.y, dmg, 1, nuke.primary_color)
 		end
@@ -194,6 +207,32 @@ end)
 
 
 -------- IRRADIATE
+local objNukeBullet = Object.new(NAMESPACE, "NucleatorBullet")
+objNukeBullet:set_sprite(sprite_bullet)
+
+objNukeBullet:clear_callbacks()
+objNukeBullet:onCreate(function( inst )
+	inst.parent = -4
+	inst.speed = 2
+	inst.dir = 0
+	inst.lifetime = 4 * 60
+	inst.ratio = 0
+end)
+
+objNukeBullet:onStep(function( inst )
+	inst.x = inst.x + inst.speed * inst.dir
+
+	local collisions = inst:get_collisions(gm.constants.pActorCollisionBase)
+
+	for _, actor in ipairs(collisions) do 
+		if inst.parent:attack_collision_canhit(actor) then
+			inst.parent:fire_explosion(inst.x, inst.y, 50, 50, 2.5, sprite_explosion)
+			inst:destroy()
+		end
+	end
+end)
+
+
 nukePrimary.sprite = sprite_skills
 nukePrimary.subimage = 0
 nukePrimary.cooldown = 12
@@ -249,6 +288,10 @@ stateNukePrimaryFire:onStep(function( actor, data )
 	if data.fired == 0 then
 		data.fired = 1
 		actor:skill_util_nudge_forward(-20 * data.ratio * actor.image_xscale)
+
+		local bullet = objNukeBullet:create(actor.x, actor.y)
+		bullet.parent = actor
+		bullet.dir = actor.image_xscale
 	end
 end)
 
@@ -401,10 +444,17 @@ stateNukeSpecial:onEnter(function( actor, data )
 	actor.image_speed = 0.2
 
 	data.fired = 0
+
+	NukeChargeRelease(actor)
 end)
 
 stateNukeSpecial:onStep(function( actor, data )
 	actor:set_immune(3)
 	actor:skill_util_fix_hspeed()
 	actor:skill_util_exit_state_on_anim_end()
+
+	if data.fired == 0 then
+		data.fired = 1
+		actor:buff_apply(selfRadiation, 6 * 60, 1)
+	end
 end)
