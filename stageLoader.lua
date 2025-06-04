@@ -62,19 +62,20 @@ basin_stage:add_interactable({
     "drone4",
     "shrine2",
     "chestHealing1",
-    "equipmentActivator",
-    "droneRecycler"
 })
 basin_stage:add_interactable_loop({
     "chestHealing2",
     "chest4",
     "shrine3S",
     "barrel2",
-    "chest5"
+    "chest5",
+    "equipmentActivator",
+    "droneRecycler"
 })
 
 --Environment Log
 basin_stage:set_log_icon(EnvironmentWhistlingBasin)
+basin_stage:set_log_view_start(3013, 2279)
 
 --Main Menu
 basin_stage:set_title_screen_properties(GroundStripWhistlingBasin)
@@ -117,11 +118,17 @@ outlands_stage:add_monster({
     "imp",
     "bison",
     "spitter",
+    "tuber",
     "colossus",
     "clayMan",
     "toxicBeast",
     "scavenger",
 	Monster_Card.find(NAMESPACE, "admonitor")
+})
+
+outlands_stage:add_monster_loop({
+    "greaterWisp",
+    "archaicWisp",
 })
 
 outlands_stage:add_interactable({
@@ -134,11 +141,17 @@ outlands_stage:add_interactable({
     "drone4",
     "shrine2",
     "equipmentActivator",
-    "droneRecycler"
+    "droneRecycler",
+    "droneUpgrader"
+})
+
+outlands_stage:add_interactable_loop({
+    "shrine3S"
 })
 
 --Environment Log
 outlands_stage:set_log_icon(EnvironmentTorridOutlands)
+outlands_stage:set_log_view_start(9247, 2300)
 
 --Main Menu
 outlands_stage:set_title_screen_properties(GroundStripTorridOutlands)
