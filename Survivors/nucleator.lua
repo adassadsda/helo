@@ -7,9 +7,9 @@ local sprite_portrait       = Resources.sprite_load(NAMESPACE, "NukePortrait", p
 local sprite_portrait_small = Resources.sprite_load(NAMESPACE, "NukePortraitSmall", path.combine(SPRITE_PATH, "portraitSmall.png"))
 local sprite_skills         = Resources.sprite_load(NAMESPACE, "NukeSkills", path.combine(SPRITE_PATH, "skills.png"), 5)
 
-local sprite_idle           = Resources.sprite_load(NAMESPACE, "NukeIdle", path.combine(SPRITE_PATH, "idle.png"), 1, 7, 9)
+local sprite_idle           = Resources.sprite_load(NAMESPACE, "NukeIdle", path.combine(SPRITE_PATH, "idle.png"), 1, 17, 18)
 local sprite_idle_half      = Resources.sprite_load(NAMESPACE, "NukeIdleHalf", path.combine(SPRITE_PATH, "idle_half.png"), 1, 8, 9)
-local sprite_walk           = Resources.sprite_load(NAMESPACE, "NukeWalk", path.combine(SPRITE_PATH, "walk.png"), 8, 7, 9)
+local sprite_walk           = Resources.sprite_load(NAMESPACE, "NukeWalk", path.combine(SPRITE_PATH, "walk.png"), 8, 18, 19)
 local sprite_walk_half      = Resources.sprite_load(NAMESPACE, "NukeWalkHalf", path.combine(SPRITE_PATH, "walk_half.png"), 8, 7, 9)
 local sprite_jump           = Resources.sprite_load(NAMESPACE, "NukeJump", path.combine(SPRITE_PATH, "jump.png"), 1, 6, 10)
 local sprite_jump_half      = Resources.sprite_load(NAMESPACE, "NukeJumpHalf", path.combine(SPRITE_PATH, "jump_half.png"), 1, 6, 10)
@@ -123,33 +123,36 @@ enemyRadiation:clear_callbacks()
 
 
 -- charging stuff dont mind me
-local charge = 0
 local charge_rate = 5
-local charge_tick = 0
-
 local charge_limit = 60
 local charge_cap = charge_limit * 1.5
 
 local function NukeChargeStep(actor)
-	charge_tick = charge_tick + 1
+	local data = actor:get_data()
+	if not Instance.exists(data.charge_bar) then return end
 
-	if charge_tick >= charge_rate then
-		charge = charge + charge_rate
-		charge_tick = 0
+	data.charge_tick = data.charge_tick + 1
 
-		if charge >= charge_limit and actor:buff_stack_count(selfRadiation) == 0 then
-			local dmg = actor.hp * 0.02
+	if data.charge_tick >= charge_rate then
+		data.charge = data.charge + charge_rate
+		data.charge_tick = 0
+
+		if data.charge > charge_limit and actor:buff_stack_count(selfRadiation) == 0 then
+			local dmg = actor.hp * 0.1
 			gm.damage_inflict(actor.id, dmg, 10, -25, actor.x, actor.y, dmg, 1, nuke.primary_color)
 		end
 	end
 
-	if charge >= charge_cap then return 1 else return 0 end
+	if data.charge >= charge_cap then return 1 else return 0 end
 end
 
 local function NukeChargeRelease(actor)
-	local ratio = charge/charge_cap
-	charge = 0
-	charge_tick = 0
+	local data = actor:get_data()
+	if not Instance.exists(data.charge_bar) then return end
+
+	local ratio = data.charge/charge_cap
+	data.charge = 0
+	data.charge_tick = 0
 	return ratio
 end
 
@@ -162,6 +165,8 @@ nuke:onStep(function( actor )
 	if not Instance.exists(data.charge_bar) then
 		data.charge_bar = objChargeBar:create()
 		data.charge_bar.parent = actor
+		data.charge = 0
+		data.charge_tick = 0
 	end
 end)
 
@@ -178,7 +183,7 @@ end)
 
 objChargeBar:onDraw(function( inst )
 	if not Instance.exists(inst.parent) then return end
-	if charge <= 0 and charge_tick == 0 then return end
+	if inst.parent:get_data().charge <= 0 and inst.parent:get_data().charge_tick == 0 then return end
 
 	local actor = inst.parent
 	local data = actor:get_data()
@@ -193,9 +198,9 @@ objChargeBar:onDraw(function( inst )
 	local bar_top		= y - 2
 	local bar_bottom	= y + 1
 
-	local ratio = charge/charge_cap
+	local ratio = data.charge/charge_cap
 
-	if charge < charge_limit then
+	if data.charge < charge_limit then
 		gm.draw_set_colour(nuke.primary_color)
 	else
 		gm.draw_set_colour(Color.RED)
@@ -213,22 +218,63 @@ objNukeBullet:set_sprite(sprite_bullet)
 objNukeBullet:clear_callbacks()
 objNukeBullet:onCreate(function( inst )
 	inst.parent = -4
-	inst.speed = 2
-	inst.dir = 0
-	inst.lifetime = 4 * 60
+	inst.initial_speed = 5
+	inst.speed = inst.initial_speed
+	inst.image_speed = 0.2
+	inst.lifetime = 3 * 60
+	inst.life = inst.lifetime
 	inst.ratio = 0
 end)
 
 objNukeBullet:onStep(function( inst )
-	inst.x = inst.x + inst.speed * inst.dir
+	if not Instance.exists(inst.parent) then
+		inst:destroy()
+		return
+	end
 
+	inst.life = inst.life - 1
+	inst.speed = inst.initial_speed * (inst.life / inst.lifetime)
+
+	if inst.life <= 0 then
+		inst:destroy()
+	end
+
+	local actor_data = inst.parent:get_data()
 	local collisions = inst:get_collisions(gm.constants.pActorCollisionBase)
 
 	for _, actor in ipairs(collisions) do 
-		if inst.parent:attack_collision_canhit(actor) then
-			inst.parent:fire_explosion(inst.x, inst.y, 50, 50, 2.5, sprite_explosion)
+		if inst.parent:attack_collision_canhit(actor) and inst.parent:is_authority() then
 			inst:destroy()
 		end
+	end
+
+	if inst:is_colliding(gm.constants.pSolidBulletCollision) then
+		inst:destroy()
+		return
+	end
+end)
+
+objNukeBullet:onDestroy(function( inst )
+	if not Instance.exists(inst.parent) then return end
+	
+	local actor_data = inst.parent:get_data()
+	local damage = inst.ratio <= charge_limit/charge_cap and inst.parent:skill_get_damage(nukePrimary) * (inst.ratio/(charge_limit/charge_cap)) or 10.0 * inst.ratio
+
+	local buff_shadow_clone = Buff.find("ror", "shadowClone")
+	for i=0, inst.parent:buff_stack_count(buff_shadow_clone) do
+		inst.parent:fire_explosion(inst.x, inst.y, 50, 50, damage, sprite_explosion)
+	end
+
+	if inst.ratio >= charge_limit/charge_cap then
+		local t = gm.instance_create(inst.x, inst.y, gm.constants.oChainLightning)
+		local overcharge = (inst.ratio - (charge_limit/charge_cap)) * 2 / (charge_limit/charge_cap)
+
+		t.parent = inst.parent.value
+		t.team = inst.parent.team
+		t.damage = inst.parent.damage * damage
+		t.blend = nuke.primary_color
+		t.bounce = 3
+		t.range = math.max(100, math.ceil(300 * overcharge))
 	end
 end)
 
@@ -236,7 +282,7 @@ end)
 nukePrimary.sprite = sprite_skills
 nukePrimary.subimage = 0
 nukePrimary.cooldown = 12
-nukePrimary.damage = 1.0
+nukePrimary.damage = 4.0
 nukePrimary.require_key_press = false
 nukePrimary.is_primary = true
 nukePrimary.does_change_activity_state = true
@@ -262,11 +308,11 @@ end)
 
 stateNukePrimary:onStep(function( actor, data )
 	actor.sprite_index2 = sprite_shoot1_half
-	actor:skill_util_strafe_update(data.exit_index/charge_cap, 0.5)
+	actor:skill_util_strafe_update(data.exit_index/charge_cap, 0.2)
 	actor:skill_util_step_strafe_sprites()
 	actor:skill_util_strafe_turn_update()
 
-	if actor:is_authority() and ((not actor:control("skill1", 0) and charge > 0) or NukeChargeStep(actor) == 1) then
+	if actor:is_authority() and ((not actor:control("skill1", 0) and actor:get_data().charge > 0) or NukeChargeStep(actor) == 1) then
 		GM.actor_set_state_networked(actor, stateNukePrimaryFire)
 	end
 end)
@@ -291,7 +337,9 @@ stateNukePrimaryFire:onStep(function( actor, data )
 
 		local bullet = objNukeBullet:create(actor.x, actor.y)
 		bullet.parent = actor
-		bullet.dir = actor.image_xscale
+		bullet.direction = actor:skill_util_facing_direction()
+		bullet.image_xscale = actor.image_xscale
+		bullet.ratio = data.ratio
 	end
 end)
 
@@ -324,12 +372,14 @@ stateNukeSecondary:onEnter(function( actor, data )
 end)
 
 stateNukeSecondary:onStep(function( actor, data )
+	local data = actor:get_data()
+
 	actor.sprite_index2 = sprite_shoot2_half
-	actor:skill_util_strafe_update(data.exit_index/charge_cap, 0.5)
+	actor:skill_util_strafe_update(data.exit_index/charge_cap, 0.2)
 	actor:skill_util_step_strafe_sprites()
 	actor:skill_util_strafe_turn_update()
 
-	if actor:is_authority() and ((not actor:control("skill2", 0) and charge > 0) or NukeChargeStep(actor) == 1) then
+	if actor:is_authority() and ((not actor:control("skill2", 0) and actor:get_data().charge > 0) or NukeChargeStep(actor) == 1) then
 		GM.actor_set_state_networked(actor, stateNukeSecondaryFire)
 	end
 end)
@@ -384,9 +434,10 @@ stateNukeUtility:onEnter(function( actor, data )
 end)
 
 stateNukeUtility:onStep(function( actor, data )
+	local data = actor:get_data()
 	actor:skill_util_fix_hspeed()
 
-	if actor:is_authority() and ((not actor:control("skill3", 0) and charge > 0) or NukeChargeStep(actor) == 1) then
+	if actor:is_authority() and ((not actor:control("skill3", 0) and actor:get_data().charge > 0) or NukeChargeStep(actor) == 1) then
 		GM.actor_set_state_networked(actor, stateNukeUtilityFire)
 	end
 end)
